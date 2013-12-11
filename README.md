@@ -1,4 +1,4 @@
 pokeontology
 ============
 
-Une web ontologie des web pokémons (1-150)
+Une web ontologie des web pokémons (1-151)
