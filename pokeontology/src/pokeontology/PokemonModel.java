@@ -56,6 +56,41 @@ public class PokemonModel extends AbstractModel {
         return new ArrayList<>(pokemons.values());
     }
 
+    private List<PokemonWeakness> getPokemonsAndTypes(String query) {
+        HashMap<Integer, PokemonWeakness> pokemonWeaknesses = new HashMap<>();
+
+        QueryExecution qexec = QueryExecutionFactory.create(prefixes + query, model);
+        ResultSet rs = qexec.execSelect();
+        while (rs.hasNext()) {
+            QuerySolution qs = rs.nextSolution();
+
+            Integer pokemonNumber = Integer.parseInt(qs.getLiteral("pokemonNumber").getString());
+
+            String pokemonName = qs.getLiteral("pokemonName").getString();
+            String pokemonNameLanguage = qs.getLiteral("pokemonName").getLanguage();
+            String weakType = qs.get("weakType").toString().split("#")[1];
+            String strongType = qs.get("strongType").toString().split("#")[1];
+
+            PokemonWeakness pokemonWeakness;
+            if (pokemonWeaknesses.containsKey(pokemonNumber)) {
+                pokemonWeakness = pokemonWeaknesses.get(pokemonNumber);
+                pokemonWeakness.getPokemon().addName(pokemonNameLanguage, pokemonName);
+                pokemonWeakness.addTypes(weakType, strongType);
+            } else {
+                Pokemon pokemon = new Pokemon();
+                pokemon.setNumber(pokemonNumber);
+                pokemon.addName(pokemonNameLanguage, pokemonName);
+
+                pokemonWeakness = new PokemonWeakness();
+                pokemonWeakness.setPokemon(pokemon);
+                pokemonWeakness.addTypes(weakType, strongType);
+
+                pokemonWeaknesses.put(pokemonNumber, pokemonWeakness);
+            }
+        }
+        return new ArrayList<>(pokemonWeaknesses.values());
+    }
+
     private List<String> getTypes(String query) {
         ArrayList<String> types = new ArrayList<>();
 
@@ -63,7 +98,7 @@ public class PokemonModel extends AbstractModel {
         ResultSet rs = qexec.execSelect();
         while (rs.hasNext()) {
             QuerySolution qs = rs.nextSolution();
-            String pokemonType = qs.get("pokemonType").toString();
+            String pokemonType = qs.get("pokemonType").toString().split("#")[1];
             types.add(pokemonType);
         }
 
@@ -144,9 +179,9 @@ public class PokemonModel extends AbstractModel {
         );
     }
 
-    public List<Pokemon> getStrongPokemonsAgainst(String pokemonName) {
-        return getPokemons(
-                "SELECT ?pokemonNumber ?pokemonName \n"
+    public List<PokemonWeakness> getPokemonWeaknesses(String pokemonName) {
+        return getPokemonsAndTypes(
+                "SELECT ?pokemonNumber ?pokemonName ?strongType ?weakType \n"
                 + "WHERE \n"
                 + "{ \n"
                 + "?strongPokemon a p:Pokemon ; \n"
@@ -160,6 +195,52 @@ public class PokemonModel extends AbstractModel {
                 + "            p:efficaceContre ?weakType . \n"
                 + "} \n"
         );
+    }
+
+    public Pokemon getPokemon(String name) {
+        String query
+                = "SELECT ?pokemonNumber ?pokemonName ?pokemonFamilyName ?pokemonType ?pokemonWeight ?pokemonHeight \n"
+                + "WHERE \n"
+                + "{ \n"
+                + "?pokemon a p:Pokemon ; \n"
+                + "           p:nom \"" + name + "\"@fr ; \n"
+                + "           p:numero ?pokemonNumber ; \n"
+                + "           p:nom ?pokemonName ; \n"
+                + "           p:famille ?pokemonFamilyName ; \n"
+                + "           p:hasType ?pokemonType ; \n"
+                + "           p:poids ?pokemonWeight ; \n"
+                + "           p:taille ?pokemonHeight . \n"
+                + "} \n";
+
+        Pokemon pokemon = new Pokemon();
+        
+        QueryExecution qexec = QueryExecutionFactory.create(prefixes + query, model);
+        ResultSet rs = qexec.execSelect();
+        while (rs.hasNext()) {
+            QuerySolution qs = rs.nextSolution();
+
+            Integer pokemonNumber = Integer.parseInt(qs.getLiteral("pokemonNumber").getString());
+
+            String pokemonName = qs.getLiteral("pokemonName").getString();
+            String pokemonNameLanguage = qs.getLiteral("pokemonName").getLanguage();
+
+            String pokemonFamilyName = qs.getLiteral("pokemonFamilyName").getString();
+            String pokemonFamilyNameLanguage = qs.getLiteral("pokemonFamilyName").getLanguage();
+
+            String type = qs.get("pokemonType").toString().split("#")[1];
+            
+            Float weight = qs.getLiteral("pokemonWeight").getFloat();
+            Float height = qs.getLiteral("pokemonHeight").getFloat();
+
+            pokemon.setNumber(pokemonNumber);
+            pokemon.addName(pokemonNameLanguage, pokemonName);
+            pokemon.addFamilyName(pokemonFamilyNameLanguage, pokemonFamilyName);
+            pokemon.addType(type);
+            pokemon.setWeight(weight);
+            pokemon.setHeight(height);
+        }
+
+        return pokemon;
     }
 
 }
